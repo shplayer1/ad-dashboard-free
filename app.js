@@ -117,6 +117,7 @@ const accessCodeInput = document.getElementById('accessCode');
 const unlockDashboardButton = document.getElementById('unlockDashboard');
 const authError = document.getElementById('authError');
 const lockButton = document.getElementById('lockButton');
+const chartTooltip = document.getElementById('chartTooltip');
 
 let currentAdvertiser = 'millis';
 
@@ -221,7 +222,80 @@ function filterRows(rows, start, end) {
   return rows.filter((row) => row.date >= start && row.date <= end);
 }
 
-function drawLineChart(svgId, values, stroke) {
+function showTooltip(event, payload) {
+  chartTooltip.hidden = false;
+  chartTooltip.innerHTML = `
+    <span class="chart-tooltip-label">${payload.label}</span>
+    <span class="chart-tooltip-value">${payload.value}</span>
+  `;
+  chartTooltip.style.left = `${event.clientX}px`;
+  chartTooltip.style.top = `${event.clientY}px`;
+}
+
+function moveTooltip(event) {
+  chartTooltip.style.left = `${event.clientX}px`;
+  chartTooltip.style.top = `${event.clientY}px`;
+}
+
+function hideTooltip() {
+  chartTooltip.hidden = true;
+}
+
+function bindTooltip(target, dot, payload, guideLine, guideX, guideTop, guideBottom) {
+  target.addEventListener('mouseenter', (event) => {
+    dot.classList.add('is-active');
+    dot.setAttribute('r', '6');
+    if (guideLine) {
+      guideLine.setAttribute('x1', guideX);
+      guideLine.setAttribute('x2', guideX);
+      guideLine.setAttribute('y1', guideTop);
+      guideLine.setAttribute('y2', guideBottom);
+      guideLine.classList.add('is-visible');
+    }
+    showTooltip(event, payload);
+  });
+  target.addEventListener('mousemove', (event) => {
+    if (guideLine) {
+      guideLine.setAttribute('x1', guideX);
+      guideLine.setAttribute('x2', guideX);
+    }
+    moveTooltip(event);
+  });
+  target.addEventListener('mouseleave', () => {
+    dot.classList.remove('is-active');
+    dot.setAttribute('r', '4');
+    if (guideLine) guideLine.classList.remove('is-visible');
+    hideTooltip();
+  });
+}
+
+function attachInteractiveCardEffects(selector) {
+  document.querySelectorAll(selector).forEach((card) => {
+    if (card.dataset.interactiveBound === '1') return;
+    card.dataset.interactiveBound = '1';
+
+    card.addEventListener('mousemove', (event) => {
+      const rect = card.getBoundingClientRect();
+      const offsetX = event.clientX - rect.left;
+      const offsetY = event.clientY - rect.top;
+      const rotateY = ((offsetX / rect.width) - 0.5) * 8;
+      const rotateX = (0.5 - (offsetY / rect.height)) * 8;
+      card.style.setProperty('--card-rotate-x', `${rotateX.toFixed(2)}deg`);
+      card.style.setProperty('--card-rotate-y', `${rotateY.toFixed(2)}deg`);
+      card.style.setProperty('--glow-x', `${((offsetX / rect.width) * 100).toFixed(2)}%`);
+      card.style.setProperty('--glow-y', `${((offsetY / rect.height) * 100).toFixed(2)}%`);
+    });
+
+    card.addEventListener('mouseleave', () => {
+      card.style.setProperty('--card-rotate-x', '0deg');
+      card.style.setProperty('--card-rotate-y', '0deg');
+      card.style.setProperty('--glow-x', '50%');
+      card.style.setProperty('--glow-y', '50%');
+    });
+  });
+}
+
+function drawLineChart(svgId, labels, values, stroke, formatter = formatNumber) {
   const svg = document.getElementById(svgId);
   const width = 320;
   const height = 140;
@@ -245,6 +319,10 @@ function drawLineChart(svgId, values, stroke) {
   base.setAttribute('fill', 'none');
   svg.appendChild(base);
 
+  const guideLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  guideLine.setAttribute('class', 'chart-guide-line');
+  svg.appendChild(guideLine);
+
   const path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
   path.setAttribute('points', points.join(' '));
   path.setAttribute('fill', 'none');
@@ -252,20 +330,39 @@ function drawLineChart(svgId, values, stroke) {
   path.setAttribute('stroke-width', '4');
   path.setAttribute('stroke-linecap', 'round');
   path.setAttribute('stroke-linejoin', 'round');
+  path.setAttribute('class', 'chart-line-animated');
   svg.appendChild(path);
+  const lineLength = path.getTotalLength();
+  path.style.setProperty('--dash-length', lineLength);
+  path.style.strokeDasharray = `${lineLength}`;
+  path.style.strokeDashoffset = `${lineLength}`;
 
-  points.forEach((point) => {
+  points.forEach((point, index) => {
     const [x, y] = point.split(',');
     const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     dot.setAttribute('cx', x);
     dot.setAttribute('cy', y);
     dot.setAttribute('r', '4');
     dot.setAttribute('fill', stroke);
+    dot.setAttribute('class', 'chart-point');
+    dot.style.animationDelay = `${index * 90}ms`;
     svg.appendChild(dot);
+
+    const hit = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    hit.setAttribute('cx', x);
+    hit.setAttribute('cy', y);
+    hit.setAttribute('r', '12');
+    hit.setAttribute('fill', 'transparent');
+    hit.setAttribute('class', 'chart-point-hit');
+    bindTooltip(hit, dot, {
+      label: labels[index] || `${index + 1}번째 구간`,
+      value: formatter(values[index]),
+    }, guideLine, x, padding, height - padding);
+    svg.appendChild(hit);
   });
 }
 
-function drawDualLineChart(svgId, seriesA, seriesB, strokeA, strokeB) {
+function drawDualLineChart(svgId, labels, seriesA, seriesB, strokeA, strokeB) {
   const svg = document.getElementById(svgId);
   const width = 320;
   const height = 140;
@@ -292,9 +389,13 @@ function drawDualLineChart(svgId, seriesA, seriesB, strokeA, strokeB) {
   base.setAttribute('fill', 'none');
   svg.appendChild(base);
 
+  const guideLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  guideLine.setAttribute('class', 'chart-guide-line');
+  svg.appendChild(guideLine);
+
   [
-    { values: seriesA, stroke: strokeA },
-    { values: seriesB, stroke: strokeB },
+    { values: seriesA, stroke: strokeA, seriesLabel: '클릭수' },
+    { values: seriesB, stroke: strokeB, seriesLabel: '전환수' },
   ].forEach(({ values, stroke }) => {
     const points = makePoints(values);
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
@@ -304,16 +405,35 @@ function drawDualLineChart(svgId, seriesA, seriesB, strokeA, strokeB) {
     path.setAttribute('stroke-width', '4');
     path.setAttribute('stroke-linecap', 'round');
     path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('class', 'chart-line-animated');
     svg.appendChild(path);
+    const lineLength = path.getTotalLength();
+    path.style.setProperty('--dash-length', lineLength);
+    path.style.strokeDasharray = `${lineLength}`;
+    path.style.strokeDashoffset = `${lineLength}`;
 
-    points.forEach((point) => {
+    points.forEach((point, index) => {
       const [x, y] = point.split(',');
       const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       dot.setAttribute('cx', x);
       dot.setAttribute('cy', y);
       dot.setAttribute('r', '4');
       dot.setAttribute('fill', stroke);
+      dot.setAttribute('class', 'chart-point');
+      dot.style.animationDelay = `${index * 80}ms`;
       svg.appendChild(dot);
+
+      const hit = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      hit.setAttribute('cx', x);
+      hit.setAttribute('cy', y);
+      hit.setAttribute('r', '12');
+      hit.setAttribute('fill', 'transparent');
+      hit.setAttribute('class', 'chart-point-hit');
+      bindTooltip(hit, dot, {
+        label: `${labels[index] || `${index + 1}번째 구간`} · ${stroke === strokeA ? '클릭수' : '전환수'}`,
+        value: formatNumber(values[index]),
+      }, guideLine, x, padding, height - padding);
+      svg.appendChild(hit);
     });
   });
 }
@@ -374,6 +494,8 @@ function renderKPIs(metrics, previousMetrics) {
     `;
     kpiGrid.appendChild(article);
   });
+
+  attachInteractiveCardEffects('.kpi-card');
 }
 
 function renderInsights(data) {
@@ -390,6 +512,8 @@ function renderInsights(data) {
       <p>${body}</p>
     </article>
   `).join('');
+
+  attachInteractiveCardEffects('.insight-card');
 }
 
 function renderAnomalies(items) {
@@ -399,6 +523,8 @@ function renderAnomalies(items) {
       <p>${item.text}</p>
     </article>
   `).join('');
+
+  attachInteractiveCardEffects('.anomaly-item');
 }
 
 function renderCampaignTable(campaigns, start, end) {
@@ -430,6 +556,7 @@ function renderDashboard() {
   const start = startDate.value;
   const end = endDate.value;
   const dailyRows = filterRows(advertiser.daily, start, end);
+  const dateLabels = dailyRows.map((row) => row.date);
   const metrics = deriveMetrics(dailyRows);
   const previousRows = advertiser.daily.filter((row) => row.date < start);
   const previousMetrics = previousRows.length ? deriveMetrics([previousRows[previousRows.length - 1]]) : deriveMetrics([]);
@@ -441,10 +568,10 @@ function renderDashboard() {
 
   renderKPIs(metrics, previousMetrics);
 
-  drawLineChart('costChart', dailyRows.map((row) => row.cost), '#0d7c66');
-  drawLineChart('revenueChart', dailyRows.map((row) => row.conversionValue), '#db6c4a');
-  drawLineChart('roasChart', dailyRows.map((row) => row.cost ? (row.conversionValue / row.cost) * 100 : 0), '#184a8a');
-  drawLineChart('aovChart', dailyRows.map((row) => row.conversions ? row.conversionValue / row.conversions : 0), '#8b4fd8');
+  drawLineChart('costChart', dateLabels, dailyRows.map((row) => row.cost), '#0d7c66', formatCurrency);
+  drawLineChart('revenueChart', dateLabels, dailyRows.map((row) => row.conversionValue), '#db6c4a', formatCurrency);
+  drawLineChart('roasChart', dateLabels, dailyRows.map((row) => row.cost ? (row.conversionValue / row.cost) * 100 : 0), '#184a8a', percent);
+  drawLineChart('aovChart', dateLabels, dailyRows.map((row) => row.conversions ? row.conversionValue / row.conversions : 0), '#8b4fd8', formatCurrency);
 
   document.getElementById('costTrendValue').textContent = formatCurrency(metrics.cost);
   document.getElementById('revenueTrendValue').textContent = formatCurrency(metrics.conversionValue);
@@ -459,7 +586,7 @@ function renderDashboard() {
 
   mediaMap.forEach(([key, chartId, valueId]) => {
     const rows = filterRows(advertiser.mediaDaily[key], start, end);
-    drawDualLineChart(chartId, rows.map((row) => row.clicks), rows.map((row) => row.conversions), '#0d7c66', '#db6c4a');
+    drawDualLineChart(chartId, rows.map((row) => row.date), rows.map((row) => row.clicks), rows.map((row) => row.conversions), '#0d7c66', '#db6c4a');
     const totalClicks = rows.reduce((sum, row) => sum + row.clicks, 0);
     const totalConversions = rows.reduce((sum, row) => sum + row.conversions, 0);
     document.getElementById(valueId).textContent = `클릭 ${formatNumber(totalClicks)} / 전환 ${formatNumber(totalConversions)}`;
@@ -468,6 +595,7 @@ function renderDashboard() {
   renderInsights(advertiser.insights);
   renderAnomalies(advertiser.anomalies);
   renderCampaignTable(advertiser.campaigns, start, end);
+  attachInteractiveCardEffects('.chart-card');
 }
 
 function hydrateFilters() {

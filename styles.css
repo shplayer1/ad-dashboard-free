@@ -10,6 +10,7 @@
   --warm-soft: rgba(217, 108, 63, 0.12);
   --danger: #b94141;
   --shadow: 0 18px 50px rgba(16, 35, 28, 0.08);
+  --shadow-strong: 0 28px 70px rgba(16, 35, 28, 0.16);
   --radius: 24px;
 }
 
@@ -295,14 +296,74 @@ button {
 }
 
 .kpi-card {
+  position: relative;
+  --card-rotate-x: 0deg;
+  --card-rotate-y: 0deg;
   padding: 16px;
   border-radius: 20px;
   background: #fff;
   border: 1px solid var(--line);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+  transform: perspective(900px) rotateX(var(--card-rotate-x)) rotateY(var(--card-rotate-y));
+  transform-style: preserve-3d;
+  overflow: hidden;
 }
 
 .kpi-card.primary {
   background: linear-gradient(180deg, rgba(11, 122, 117, 0.12), rgba(255,255,255,0.96));
+}
+
+.kpi-card::after,
+.chart-card::after,
+.insight-card::after,
+.anomaly-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.45), transparent 45%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.kpi-card::before,
+.chart-card::before,
+.insight-card::before,
+.anomaly-item::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at var(--glow-x, 50%) var(--glow-y, 50%), rgba(11, 122, 117, 0.16), transparent 34%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.kpi-card:hover,
+.chart-card:hover,
+.insight-card:hover,
+.anomaly-item:hover {
+  transform: perspective(900px) rotateX(var(--card-rotate-x)) rotateY(var(--card-rotate-y)) translateY(-4px) scale(1.01);
+  box-shadow: var(--shadow-strong);
+  border-color: rgba(11, 122, 117, 0.22);
+}
+
+.kpi-card:hover::after,
+.chart-card:hover::after,
+.insight-card:hover::after,
+.anomaly-item:hover::after {
+  opacity: 1;
+}
+
+.kpi-card:hover::before,
+.chart-card:hover::before,
+.insight-card:hover::before,
+.anomaly-item:hover::before {
+  opacity: 1;
 }
 
 .kpi-label {
@@ -346,10 +407,19 @@ button {
 }
 
 .chart-card {
+  position: relative;
+  --card-rotate-x: 0deg;
+  --card-rotate-y: 0deg;
   padding: 16px;
   border-radius: 20px;
   background: #fff;
   border: 1px solid var(--line);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+  overflow: hidden;
+  transform: perspective(900px) rotateX(var(--card-rotate-x)) rotateY(var(--card-rotate-y));
 }
 
 .chart-card header {
@@ -367,6 +437,43 @@ button {
 .trend-chart {
   width: 100%;
   height: auto;
+  overflow: visible;
+}
+
+.chart-point {
+  cursor: pointer;
+  transition: r 140ms ease, transform 140ms ease;
+  transform-origin: center;
+  animation: chartPointPop 440ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+
+.chart-point-hit {
+  cursor: pointer;
+}
+
+.chart-point.is-active {
+  filter: drop-shadow(0 2px 10px rgba(16, 35, 28, 0.18));
+}
+
+.chart-guide-line {
+  stroke: rgba(16, 35, 28, 0.22);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.chart-guide-line.is-visible {
+  opacity: 1;
+}
+
+.chart-line-animated {
+  animation: chartLineDraw 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.chart-point-label {
+  font-size: 11px;
+  fill: var(--muted);
 }
 
 .legend-row {
@@ -407,10 +514,18 @@ button {
 
 .insight-card,
 .anomaly-item {
+  position: relative;
+  --card-rotate-x: 0deg;
+  --card-rotate-y: 0deg;
   padding: 16px;
   border-radius: 18px;
   background: #fff;
   border: 1px solid var(--line);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+  transform: perspective(900px) rotateX(var(--card-rotate-x)) rotateY(var(--card-rotate-y));
 }
 
 .insight-card h3,
@@ -450,6 +565,14 @@ button {
   background: #fff;
 }
 
+.table-wrap tbody tr {
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.table-wrap tbody tr:hover {
+  background: rgba(11, 122, 117, 0.06);
+}
+
 .table-wrap th,
 .table-wrap td {
   padding: 14px 16px;
@@ -471,6 +594,70 @@ button {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-top: 18px;
+}
+
+.chart-tooltip {
+  position: fixed;
+  z-index: 1200;
+  min-width: 140px;
+  max-width: 220px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(16, 35, 28, 0.92);
+  color: #fff;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.24);
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 14px));
+  backdrop-filter: blur(8px);
+}
+
+.chart-tooltip-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.chart-tooltip-value {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.chart-tooltip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  background: rgba(16, 35, 28, 0.92);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+@keyframes chartLineDraw {
+  from {
+    stroke-dashoffset: var(--dash-length, 0);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes chartPointPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 body.force-mobile .page-shell {
