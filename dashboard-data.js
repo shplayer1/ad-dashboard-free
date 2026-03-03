@@ -1,4 +1,4 @@
-window.__DASHBOARD_DATA__ = {
+window.__DASHBOARD_DATA__ = window.DASHBOARD_DATA = {
   "millis": {
     "name": "밀리밀리",
     "lastUpdated": "2026-03-03 15:02",
