@@ -569,23 +569,39 @@ function initViewModes() {
 
 async function loadDashboardData() {
   if (!DASHBOARD_DATA_ENDPOINT) return;
+  dashboardData = await new Promise((resolve, reject) => {
+    const callbackName = `__dashboardJsonpCallback_${Date.now()}`;
+    const url = new URL(DASHBOARD_DATA_ENDPOINT, window.location.href);
+    if (DASHBOARD_DATA_TOKEN) {
+      url.searchParams.set('token', DASHBOARD_DATA_TOKEN);
+    }
+    url.searchParams.set('callback', callbackName);
 
-  const url = new URL(DASHBOARD_DATA_ENDPOINT, window.location.href);
-  if (DASHBOARD_DATA_TOKEN) {
-    url.searchParams.set('token', DASHBOARD_DATA_TOKEN);
-  }
+    const script = document.createElement('script');
+    script.src = url.toString();
+    script.async = true;
 
-  const response = await fetch(url.toString(), { cache: 'no-store' });
-  if (!response.ok) {
-    throw new Error(`dashboard data fetch failed: ${response.status}`);
-  }
+    window[callbackName] = (payload) => {
+      try {
+        if (!payload || typeof payload !== 'object' || payload.error) {
+          reject(new Error(payload && payload.error ? payload.error : 'invalid dashboard payload'));
+          return;
+        }
+        resolve(payload);
+      } finally {
+        delete window[callbackName];
+        script.remove();
+      }
+    };
 
-  const payload = await response.json();
-  if (!payload || typeof payload !== 'object' || payload.error) {
-    throw new Error(payload && payload.error ? payload.error : 'invalid dashboard payload');
-  }
+    script.onerror = () => {
+      delete window[callbackName];
+      script.remove();
+      reject(new Error('dashboard jsonp load failed'));
+    };
 
-  dashboardData = payload;
+    document.body.appendChild(script);
+  });
 }
 
 function initDashboard() {
