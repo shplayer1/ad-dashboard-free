@@ -1,10 +1,10 @@
 const ACCESS_CODE = 'teamview2026!';
 const ACCESS_KEY = 'dashboardStaticUnlocked';
 const VIEW_MODE_KEY = 'dashboardViewMode';
-const DASHBOARD_DATA_ENDPOINT = window.__DASHBOARD_DATA_ENDPOINT__ || '';
-const DASHBOARD_DATA_TOKEN = window.__DASHBOARD_DATA_TOKEN__ || '';
+const DASHBOARD_DATA_ENDPOINT = window.__DASHBOARD_DATA_ENDPOINT__ || window.DASHBOARD_DATA_ENDPOINT || '';
+const DASHBOARD_DATA_TOKEN = window.__DASHBOARD_DATA_TOKEN__ || window.DASHBOARD_DATA_TOKEN || '';
 
-let dashboardData = window.__DASHBOARD_DATA__ || {};
+let dashboardData = window.__DASHBOARD_DATA__ || window.DASHBOARD_DATA || {};
 
 const periodOptions = [
   { value: 'yesterday', label: '전일' },
@@ -569,39 +569,47 @@ function initViewModes() {
 
 async function loadDashboardData() {
   if (!DASHBOARD_DATA_ENDPOINT) return;
-  dashboardData = await new Promise((resolve, reject) => {
-    const callbackName = `__dashboardJsonpCallback_${Date.now()}`;
-    const url = new URL(DASHBOARD_DATA_ENDPOINT, window.location.href);
-    if (DASHBOARD_DATA_TOKEN) {
-      url.searchParams.set('token', DASHBOARD_DATA_TOKEN);
-    }
-    url.searchParams.set('callback', callbackName);
+  try {
+    dashboardData = await new Promise((resolve, reject) => {
+      const callbackName = `__dashboardJsonpCallback_${Date.now()}`;
+      const url = new URL(DASHBOARD_DATA_ENDPOINT, window.location.href);
+      if (DASHBOARD_DATA_TOKEN) {
+        url.searchParams.set('token', DASHBOARD_DATA_TOKEN);
+      }
+      url.searchParams.set('callback', callbackName);
 
-    const script = document.createElement('script');
-    script.src = url.toString();
-    script.async = true;
+      const script = document.createElement('script');
+      script.src = url.toString();
+      script.async = true;
 
-    window[callbackName] = (payload) => {
-      try {
-        if (!payload || typeof payload !== 'object' || payload.error) {
-          reject(new Error(payload && payload.error ? payload.error : 'invalid dashboard payload'));
-          return;
+      window[callbackName] = (payload) => {
+        try {
+          if (!payload || typeof payload !== 'object' || payload.error) {
+            reject(new Error(payload && payload.error ? payload.error : 'invalid dashboard payload'));
+            return;
+          }
+          resolve(payload);
+        } finally {
+          delete window[callbackName];
+          script.remove();
         }
-        resolve(payload);
-      } finally {
+      };
+
+      script.onerror = () => {
         delete window[callbackName];
         script.remove();
-      }
-    };
+        reject(new Error('dashboard jsonp load failed'));
+      };
 
-    script.onerror = () => {
-      delete window[callbackName];
-      script.remove();
-      reject(new Error('dashboard jsonp load failed'));
-    };
-
-    document.body.appendChild(script);
-  });
+      document.body.appendChild(script);
+    });
+  } catch (error) {
+    if (dashboardData && Object.keys(dashboardData).length) {
+      console.warn('remote dashboard data load failed, using embedded dashboard-data.js fallback', error);
+      return;
+    }
+    throw error;
+  }
 }
 
 function initDashboard() {
@@ -635,5 +643,6 @@ async function boot() {
 
 boot().catch((error) => {
   console.error(error);
-  alert('대시보드 데이터를 불러오지 못했습니다. config.js 또는 dashboard-data.js 설정을 확인해 주세요.');
+  const message = error && error.message ? error.message : 'unknown error';
+  alert(`대시보드 데이터를 불러오지 못했습니다. 원인: ${message}`);
 });
