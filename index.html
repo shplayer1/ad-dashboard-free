@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>광고 성과 통합 대시보드</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="auth-gate" id="authGate" hidden>
+      <div class="auth-card">
+        <p class="eyebrow">Free Static Access</p>
+        <h2>대시보드 입장</h2>
+        <p class="auth-copy">
+          이 버전은 무료 정적 호스팅용입니다. 공통 접근코드를 입력하면 대시보드가 열립니다.
+        </p>
+        <label class="auth-label" for="accessCode">접근코드</label>
+        <input id="accessCode" type="password" placeholder="접근코드 입력" />
+        <button id="unlockDashboard" class="primary-button auth-button">입장하기</button>
+        <p class="auth-error" id="authError" hidden>접근코드가 일치하지 않습니다.</p>
+      </div>
+    </div>
+
+    <div class="page-shell">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Advertising Control Room</p>
+          <h1>광고 성과 통합 대시보드</h1>
+          <p class="hero-copy">
+            무료 정적 호스팅용 사이트 UI 버전입니다. 광고주별 성과, AOV 추이, AI 주간 인사이트를 한 화면에서 확인합니다.
+          </p>
+          <div class="view-mode-wrap">
+            <span class="view-mode-label">보기 방식</span>
+            <div class="view-mode-toggle" id="viewModeToggle">
+              <button type="button" class="view-mode-button" data-view-mode="auto">자동</button>
+              <button type="button" class="view-mode-button" data-view-mode="desktop">데스크탑 보기</button>
+              <button type="button" class="view-mode-button" data-view-mode="mobile">모바일 보기</button>
+            </div>
+          </div>
+        </div>
+        <aside class="hero-status">
+          <div class="status-card">
+            <span class="status-label">마지막 업데이트</span>
+            <strong id="lastUpdated">-</strong>
+          </div>
+          <div class="status-card accent">
+            <span class="status-label">데이터 상태</span>
+            <strong id="dataCoverage">-</strong>
+          </div>
+          <div class="status-card session-card">
+            <span class="status-label">접속 모드</span>
+            <strong>무료 정적 배포</strong>
+            <span class="session-role">공통 접근코드 방식</span>
+            <button id="lockButton" class="session-logout" type="button">잠금</button>
+          </div>
+        </aside>
+      </header>
+
+      <main class="dashboard-grid">
+        <section class="panel filters-panel">
+          <div class="panel-title-wrap">
+            <h2>조회 필터</h2>
+            <p>광고주와 기간을 바꾸면 KPI, 그래프, 인사이트가 함께 바뀝니다.</p>
+          </div>
+          <div class="filters-row">
+            <label>
+              <span>광고주 선택</span>
+              <select id="advertiserSelect"></select>
+            </label>
+            <label>
+              <span>기간 선택</span>
+              <select id="periodSelect"></select>
+            </label>
+            <label>
+              <span>시작일</span>
+              <input id="startDate" type="date" />
+            </label>
+            <label>
+              <span>종료일</span>
+              <input id="endDate" type="date" />
+            </label>
+            <button id="applyFilters" class="primary-button">조회</button>
+          </div>
+        </section>
+
+        <section class="panel kpi-panel">
+          <div class="panel-title-wrap">
+            <h2>핵심 KPI</h2>
+            <p id="selectedRangeLabel">-</p>
+          </div>
+          <div id="kpiGrid" class="kpi-grid"></div>
+        </section>
+
+        <section class="panel charts-panel wide">
+          <div class="panel-title-wrap">
+            <h2>성과 추이</h2>
+            <p>광고비, 전환매출, ROAS, AOV 흐름을 함께 봅니다.</p>
+          </div>
+          <div class="chart-grid">
+            <article class="chart-card">
+              <header>
+                <h3>광고비 추이</h3>
+                <strong id="costTrendValue">-</strong>
+              </header>
+              <svg id="costChart" viewBox="0 0 320 140" class="trend-chart"></svg>
+            </article>
+            <article class="chart-card">
+              <header>
+                <h3>전환매출 추이</h3>
+                <strong id="revenueTrendValue">-</strong>
+              </header>
+              <svg id="revenueChart" viewBox="0 0 320 140" class="trend-chart"></svg>
+            </article>
+            <article class="chart-card">
+              <header>
+                <h3>ROAS 추이</h3>
+                <strong id="roasTrendValue">-</strong>
+              </header>
+              <svg id="roasChart" viewBox="0 0 320 140" class="trend-chart"></svg>
+            </article>
+            <article class="chart-card highlight">
+              <header>
+                <h3>AOV 꺾은선 그래프</h3>
+                <strong id="aovTrendValue">-</strong>
+              </header>
+              <svg id="aovChart" viewBox="0 0 320 140" class="trend-chart"></svg>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel media-charts-panel wide">
+          <div class="panel-title-wrap">
+            <h2>매체별 클릭수 / 전환수 추이</h2>
+            <p>파워링크, 쇼핑검색, 브랜드검색별 클릭수와 전환수 흐름을 비교합니다.</p>
+          </div>
+          <div class="legend-row">
+            <span class="legend-item"><i class="legend-dot teal"></i>클릭수</span>
+            <span class="legend-item"><i class="legend-dot coral"></i>전환수</span>
+          </div>
+          <div class="chart-grid media-chart-grid">
+            <article class="chart-card">
+              <header>
+                <h3>파워링크</h3>
+                <strong id="powerlinkTrendValue">-</strong>
+              </header>
+              <svg id="powerlinkChart" viewBox="0 0 320 140" class="trend-chart"></svg>
+            </article>
+            <article class="chart-card">
+              <header>
+                <h3>쇼핑검색</h3>
+                <strong id="shoppingTrendValue">-</strong>
+              </header>
+              <svg id="shoppingChart" viewBox="0 0 320 140" class="trend-chart"></svg>
+            </article>
+            <article class="chart-card">
+              <header>
+                <h3>브랜드검색</h3>
+                <strong id="brandTrendValue">-</strong>
+              </header>
+              <svg id="brandChart" viewBox="0 0 320 140" class="trend-chart"></svg>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel insights-panel">
+          <div class="panel-title-wrap">
+            <h2>AI 주간 인사이트</h2>
+            <p>요약, 효율, AOV 변화, 추천 액션을 자동 문장화하는 영역입니다.</p>
+          </div>
+          <div id="insightCards" class="insight-cards"></div>
+        </section>
+
+        <section class="panel anomaly-panel">
+          <div class="panel-title-wrap">
+            <h2>이상징후 및 체크포인트</h2>
+            <p>ROAS 하락, AOV 감소, 효율 악화 캠페인을 빠르게 확인합니다.</p>
+          </div>
+          <div id="anomalyList" class="anomaly-list"></div>
+        </section>
+
+        <section class="panel campaign-panel wide">
+          <div class="panel-title-wrap">
+            <h2>캠페인 성과 현황</h2>
+            <p>광고비, 전환매출, ROAS, AOV 기준으로 정렬 가능한 상세 테이블입니다.</p>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>캠페인명</th>
+                  <th>광고비</th>
+                  <th>클릭수</th>
+                  <th>전환수</th>
+                  <th>전환매출</th>
+                  <th>ROAS</th>
+                  <th>CPA</th>
+                  <th>AOV</th>
+                </tr>
+              </thead>
+              <tbody id="campaignTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel footer-panel wide">
+          <div class="panel-title-wrap">
+            <h2>데이터 상태</h2>
+            <p>현재 무료 정적 버전에 포함된 범위와 적재 목표 범위를 표시합니다.</p>
+          </div>
+          <div class="footer-metadata">
+            <div>
+              <span class="status-label">현재 적재 범위</span>
+              <strong id="currentCoverage">-</strong>
+            </div>
+            <div>
+              <span class="status-label">요청 적재 범위</span>
+              <strong>2025-09-01 ~ 2026-03-02</strong>
+            </div>
+            <div>
+              <span class="status-label">배포 유형</span>
+              <strong>정적 무료 호스팅용</strong>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
