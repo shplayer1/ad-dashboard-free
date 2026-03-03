@@ -1,7 +1,7 @@
 window.__DASHBOARD_DATA__ = {
   "millis": {
     "name": "밀리밀리",
-    "lastUpdated": "2026-03-03 14:39",
+    "lastUpdated": "2026-03-03 15:02",
     "currentCoverage": "2025-09-01 ~ 2026-03-02",
     "daily": [
       {
@@ -71590,7 +71590,7 @@ window.__DASHBOARD_DATA__ = {
   },
   "ilhwa": {
     "name": "일화음료",
-    "lastUpdated": "2026-03-03 14:40",
+    "lastUpdated": "2026-03-03 15:03",
     "currentCoverage": "2025-09-01 ~ 2026-03-02",
     "daily": [
       {
