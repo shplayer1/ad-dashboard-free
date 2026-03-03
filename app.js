@@ -1,8 +1,10 @@
 const ACCESS_CODE = 'teamview2026!';
 const ACCESS_KEY = 'dashboardStaticUnlocked';
 const VIEW_MODE_KEY = 'dashboardViewMode';
+const DASHBOARD_DATA_ENDPOINT = window.__DASHBOARD_DATA_ENDPOINT__ || '';
+const DASHBOARD_DATA_TOKEN = window.__DASHBOARD_DATA_TOKEN__ || '';
 
-const dashboardData = window.__DASHBOARD_DATA__ || {};
+let dashboardData = window.__DASHBOARD_DATA__ || {};
 
 const periodOptions = [
   { value: 'yesterday', label: '전일' },
@@ -565,7 +567,31 @@ function initViewModes() {
   });
 }
 
+async function loadDashboardData() {
+  if (!DASHBOARD_DATA_ENDPOINT) return;
+
+  const url = new URL(DASHBOARD_DATA_ENDPOINT, window.location.href);
+  if (DASHBOARD_DATA_TOKEN) {
+    url.searchParams.set('token', DASHBOARD_DATA_TOKEN);
+  }
+
+  const response = await fetch(url.toString(), { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error(`dashboard data fetch failed: ${response.status}`);
+  }
+
+  const payload = await response.json();
+  if (!payload || typeof payload !== 'object' || payload.error) {
+    throw new Error(payload && payload.error ? payload.error : 'invalid dashboard payload');
+  }
+
+  dashboardData = payload;
+}
+
 function initDashboard() {
+  if (!dashboardData || !Object.keys(dashboardData).length) {
+    throw new Error('dashboard data is empty');
+  }
   hydrateFilters();
   updateRangeFromPreset();
   renderDashboard();
@@ -584,6 +610,14 @@ function initDashboard() {
   applyFilters.addEventListener('click', renderDashboard);
 }
 
-initAuth();
-initViewModes();
-initDashboard();
+async function boot() {
+  initAuth();
+  initViewModes();
+  await loadDashboardData();
+  initDashboard();
+}
+
+boot().catch((error) => {
+  console.error(error);
+  alert('대시보드 데이터를 불러오지 못했습니다. config.js 또는 dashboard-data.js 설정을 확인해 주세요.');
+});
